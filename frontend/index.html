@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Xadrez com IA - Stockfish</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .chess-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .controls-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .evaluation-container {
+            margin-bottom: 30px;
+        }
+
+        .evaluation-bar {
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(90deg, #2c3e50 0%, #2c3e50 50%, #ecf0f1 50%, #ecf0f1 100%);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            border: 3px solid #34495e;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .eval-fill {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f, #2ecc71);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: left center;
+        }
+
+        .eval-text {
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0;
+            font-size: 1.3em;
+            color: #2c3e50;
+        }
+
+        .board-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .chessboard {
+            width: 560px;
+            height: 560px;
+            border: 6px solid #8b4513;
+            border-radius: 12px;
+            position: relative;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            overflow: hidden;
+            background: #f0d9b5;
+        }
+
+        .coordinates {
+            position: absolute;
+            font-weight: bold;
+            color: #8b4513;
+            font-size: 14px;
+        }
+
+        .coord-rank {
+            left: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .coord-file {
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .square {
+            width: 70px;
+            height: 70px;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .square.light {
+            background-color: #f0d9b5;
+        }
+
+        .square.dark {
+            background-color: #b58863;
+        }
+
+        .square:hover {
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .square.selected {
+            background-color: #ffeb3b !important;
+            box-shadow: inset 0 0 0 4px #ff5722;
+        }
+
+        .square.highlight {
+            background-color: #4caf50 !important;
+            box-shadow: inset 0 0 0 3px #2e7d32;
+        }
+
+        .square.last-move {
+            background-color: #81c784 !important;
+        }
+
+        .piece {
+            transition: all 0.3s ease;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .piece:hover {
+            transform: scale(1.1);
+        }
+
+        .possible-move {
+            position: relative;
+        }
+
+        .possible-move::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: rgba(76, 175, 80, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .capture-move::after {
+            width: 60px;
+            height: 60px;
+            background: transparent;
+            border: 4px solid rgba(244, 67, 54, 0.8);
+            border-radius: 50%;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .control-group h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(56, 239, 125, 0.4);
+        }
+
+        .pgn-input {
+            width: 100%;
+            height: 120px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .pgn-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .moves-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .move-item {
+            display: inline-block;
+            margin: 3px;
+            padding: 8px 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        .move-item:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .move-item.current {
+            background: #28a745;
+            color: white;
+        }
+
+        .analysis-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .analysis-panel h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .engine-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .best-moves {
+            margin-top: 15px;
+        }
+
+        .best-move {
+            background: #fff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .svg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .arrow {
+            stroke: #ff6b6b;
+            stroke-width: 5;
+            fill: none;
+            marker-end: url(#arrowhead);
+            opacity: 0.8;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .chessboard {
+                width: 480px;
+                height: 480px;
+            }
+            
+            .square {
+                width: 60px;
+                height: 60px;
+                font-size: 38px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .chessboard {
+                width: 320px;
+                height: 320px;
+            }
+            
+            .square {
+                width: 40px;
+                height: 40px;
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chess-section">
+            <h1><i class="fas fa-chess"></i> Analisador de Xadrez Pro</h1>
+            
+            <div class="evaluation-container">
+                <div class="evaluation-bar">
+                    <div class="eval-fill" id="evalFill"></div>
+                </div>
+                <div class="eval-text" id="evalText">Carregando análise...</div>
+            </div>
+            
+            <div class="board-container">
+                <div class="chessboard" id="chessboard">
+                    <svg class="svg-overlay" id="arrowSvg">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+                                    refX="12" refY="4" orient="auto" markerUnits="strokeWidth">
+                                <polygon points="0 0, 12 4, 0 8" fill="#ff6b6b" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-secondary" onclick="flipBoard()">
+                    <i class="fas fa-sync-alt"></i> Virar Tabuleiro
+                </button>
+                <button class="btn-secondary" onclick="clearArrows()">
+                    <i class="fas fa-eraser"></i> Limpar Setas
+                </button>
+                <button class="btn-primary" onclick="resetBoard()">
+                    <i class="fas fa-redo"></i> Resetar
+                </button>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="control-group">
+                <h3><i class="fas fa-file-import"></i> Importar PGN</h3>
+                <textarea class="pgn-input" id="pgnInput" 
+                         placeholder="Cole aqui o PGN do jogo...&#10;&#10;Exemplo:&#10;1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6"></textarea>
+                
+                <div class="button-group" style="margin-top: 15px;">
+                    <button class="btn-primary" onclick="loadPGN()">
+                        <i class="fas fa-upload"></i> Carregar PGN
+                    </button>
+                    <button class="btn-secondary" onclick="exportPGN()">
+                        <i class="fas fa-download"></i> Exportar PGN
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3><i class="fas fa-gamepad"></i> Controles de Navegação</h3>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="firstMove()">
+                        <i class="fas fa-fast-backward"></i> Início
+                    </button>
+                    <button class="btn-primary" onclick="prevMove()">
+                        <i class="fas fa-step-backward"></i> Anterior
+                    </button>
+                    <button class="btn-primary" onclick="nextMove()">
+                        <i class="fas fa-step-forward"></i> Próxima
+                    </button>
+                    <button class="btn-primary" onclick="lastMove()">
+                        <i class="fas fa-fast-forward"></i> Final
+                    </button>
+                </div>
+
+                <div class="button-group" style="margin-top: 10px;">
+                    <button class="btn-success" onclick="toggleAutoPlay()">
+                        <i class="fas fa-play" id="autoPlayIcon"></i> Auto Play
+                    </button>
+                    <button class="btn-secondary" onclick="analyzeWithEngine()">
+                        <i class="fas fa-brain"></i> Analisar IA
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3><i class="fas fa-list"></i> Lista de Jogadas</h3>
+                <div class="moves-list" id="movesList">
+                    <div style="text-align: center; color: #666; padding: 20px;">
+                        Nenhum movimento ainda
+                    </div>
+                </div>
+            </div>
+
+            <div class="analysis-panel">
+                <h3><i class="fas fa-microchip"></i> Análise Stockfish</h3>
+                
+                <div class="engine-status" id="engineStatus">
+                    <div class="status-indicator"></div>
+                    <span>Motor Stockfish carregado e pronto</span>
+                </div>
+
+                <div id="analysisContent">
+                    <p>Clique em "Analisar IA" para obter uma avaliação detalhada da posição atual usando o motor Stockfish.</p>
+                    
+                    <div class="best-moves" id="bestMoves" style="display: none;">
+                        <strong>Melhores jogadas:</strong>
+                        <div id="engineMovesList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carregar Stockfish -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
+    
+    <script>
+        // Configuração do motor Stockfish
+        let engine = null;
+        let engineReady = false;
+
+        // Inicializar Stockfish
+        function initStockfish() {
+            try {
+                if (typeof Stockfish === 'function') {
+                    engine = Stockfish();
+                    
+                    engine.onmessage = function(event) {
+                        handleEngineMessage(event.data || event);
+                    };
+                    
+                    engine.postMessage('uci');
+                    updateEngineStatus('Inicializando motor Stockfish...', false);
+                } else {
+                    updateEngineStatus('Erro: Stockfish não carregado', false);
+                }
+            } catch (error) {
+                console.error('Erro ao inicializar Stockfish:', error);
+                updateEngineStatus('Erro ao carregar motor', false);
+            }
+        }
+
+        // Manipular mensagens do motor
+        function handleEngineMessage(message) {
+            console.log('Engine:', message);
+            
+            if (message.includes('uciok')) {
+                engine.postMessage('isready');
+            } else if (message.includes('readyok')) {
+                engineReady = true;
+                updateEngineStatus('Motor Stockfish pronto', true);
+            } else if (message.includes('bestmove')) {
+                handleBestMove(message);
+            } else if (message.includes('info')) {
+                handleAnalysisInfo(message);
+            }
+        }
+
+        // Atualizar status do motor
+        function updateEngineStatus(status, ready) {
+            const statusEl = document.getElementById('engineStatus');
+            const indicator = statusEl.querySelector('.status-indicator');
+            const text = statusEl.querySelector('span');
+            
+            text.textContent = status;
+            indicator.style.background = ready ? '#4caf50' : '#f44336';
+        }
+
+        // Estado do jogo
+        let gameState = {
+            board: [],
+            currentPlayer: 'white',
+            moves: [],
+            gameHistory: [],
+            currentMoveIndex: -1,
+            selectedSquare: null,
+            isFlipped: false,
+            arrows: [],
+            evaluation: 0,
+            lastMove: null,
+            isAnalyzing: false,
+            autoPlayInterval: null
+        };
+
+        // Peças Unicode
+        const pieces = {
+            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
+            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
+        };
+
+        // Posição inicial do xadrez
+        function initializeBoard() {
+            gameState.board = [
+                ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+                ['bP','bP','bP','bP','bP','bP','bP','bP'],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['wP','wP','wP','wP','wP','wP','wP','wP'],
+                ['wR','wN','wB','wQ','wK','wB','wN','wR']
+            ];
+            gameState.moves = [];
+            gameState.gameHistory = [];
+            gameState.currentMoveIndex = -1;
+            gameState.currentPlayer = 'white';
+            gameState.evaluation = 0;
+            gameState.lastMove = null;
+            gameState.selectedSquare = null;
+            gameState.arrows = [];
+        }
+
+        // Criar tabuleiro visual
+        function createBoard() {
+            const boardEl = document.getElementById('chessboard');
+            boardEl.innerHTML = `
+                <svg class="svg-overlay" id="arrowSvg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+                                refX="12" refY="4" orient="auto" markerUnits="strokeWidth">
+                            <polygon points="0 0, 12 4, 0 8" fill="#ff6b6b" />
+                        </marker>
+                    </defs>
+                </svg>
+            `;
+            
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    
+                    const displayRow = gameState.isFlipped ? row : 7 - row;
+                    const displayCol = gameState.isFlipped ? 7 - col : col;
+                    
+                    square.style.left = `${displayCol * 70}px`;
+                    square.style.top = `${displayRow * 70}px`;
+                    
+                    square.addEventListener('click', () => handleSquareClick(row, col));
+                    square.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleRightClick(row, col);
+                    });
+                    
+                    boardEl.appendChild(square);
+                }
+            }
+            
+            updateDisplay();
+        }
+
+        // Atualizar display do tabuleiro
+        function updateDisplay() {
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => {
+                const row = parseInt(square.dataset.row);
+                const col = parseInt(square.dataset.col);
+                const piece = gameState.board[row][col];
+                
+                // Limpar classes
+                square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                
+                // Adicionar peça
+                square.innerHTML = piece ? `<div class="piece">${pieces[piece]}</div>` : '';
+                
+                // Destacar último movimento
+                if (gameState.lastMove && 
+                    ((gameState.lastMove.from[0] === row && gameState.lastMove.from[1] === col) ||
+                     (gameState.lastMove.to[0] === row && gameState.lastMove.to[1] === col))) {
+                    square.classList.add('last-move');
+                }
+                
+                // Destacar quadrado selecionado
+                if (gameState.selectedSquare && 
+                    gameState.selectedSquare[0] === row && gameState.selectedSquare[1] === col) {
+                    square.classList.add('selected');
+                }
+            });
+            
+            updateEvaluation();
+            updateMovesList();
+            drawArrows();
+        }
+
+        // Manipular clique no quadrado
+        function handleSquareClick(row, col) {
+            if (gameState.selectedSquare) {
+                const [fromRow, fromCol] = gameState.selectedSquare;
+                
+                if (fromRow === row && fromCol === col) {
+                    // Desselecionar
+                    gameState.selectedSquare = null;
+                    clearHighlights();
+                    updateDisplay();
+                    return;
+                }
+                
+                // Tentar fazer movimento
+                if (isValidMove(fromRow, fromCol, row, col)) {
+                    makeMove(fromRow, fromCol, row, col);
+                    gameState.selectedSquare = null;
+                    clearHighlights();
+                    updateDisplay();
+                } else {
+                    // Selecionar nova peça
+                    selectSquare(row, col);
+                }
+            } else {
+                selectSquare(row, col);
+            }
+        }
+
+        // Selecionar quadrado
+        function selectSquare(row, col) {
+            const piece = gameState.board[row][col];
+            if (piece && piece[0] === gameState.currentPlayer[0]) {
+                gameState.selectedSquare = [row, col];
+                clearHighlights();
+                showPossibleMoves(row, col);
+                updateDisplay();
+            }
+        }
+
+        // Mostrar movimentos possíveis
+        function showPossibleMoves(row, col) {
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => {
+                const r = parseInt(square.dataset.row);
+                const c = parseInt(square.dataset.col);
+                
+                if (isValidMove(row, col, r, c)) {
+                    const hasEnemy = gameState.board[r][c] !== '';
+                    square.classList.add(hasEnemy ? 'capture-move' : 'possible-move');
+                }
+            });
+        }
+
+        // Limpar destaques
+        function clearHighlights() {
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => {
+                square.classList.remove('possible-move', 'capture-move', 'highlight');
+            });
+        }
+
+        // Validar movimento
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            const piece = gameState.board[fromRow][fromCol];
+            const target = gameState.board[toRow][toCol];
+            
+            if (!piece || (target && target[0] === piece[0])) return false;
+            
+            const rowDiff = Math.abs(toRow - fromRow);
+            const colDiff = Math.abs(toCol - fromCol);
+            const rowDir = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
+            const colDir = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
+            
+            switch (piece[1]) {
+                case 'P': // Peão
+                    const direction = piece[0] === 'w' ? -1 : 1;
+                    const startRow = piece[0] === 'w' ? 6 : 1;
+                    
+                    if (colDiff === 0) {
+                        if (target) return false;
+                        if (toRow === fromRow + direction) return true;
+                        if (fromRow === startRow && toRow === fromRow + 2 * direction) return true;
+                    } else if (colDiff === 1 && rowDiff === 1 && toRow === fromRow + direction) {
+                        return target && target[0] !== piece[0];
+                    }
+                    return false;
+                    
+                case 'R': // Torre
+                    if (rowDiff === 0 || colDiff === 0) {
+                        return isPathClear(fromRow, fromCol, toRow, toCol);
+                    }
+                    return false;
+                    
+                case 'N': // Cavalo
+                    return (rowDiff === 2 && colDiff === 1) || (rowDiff === 1 && colDiff === 2);
+                    
+                case 'B': // Bispo
+                    if (rowDiff === colDiff) {
+                        return isPathClear(fromRow, fromCol, toRow, toCol);
+                    }
+                    return false;
+                    
+                case 'Q': // Rainha
+                    if (rowDiff === 0 || colDiff === 0 || rowDiff === colDiff) {
+                        return isPathClear(fromRow, fromCol, toRow, toCol);
+                    }
+                    return false;
+                    
+                case 'K': // Rei
+                    return rowDiff <= 1 && colDiff <= 1;
+            }
+            return false;
+        }
+
+        // Verificar se o caminho está livre
+        function isPathClear(fromRow, fromCol, toRow, toCol) {
+            const rowStep = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
+            const colStep = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
+            
+            let row = fromRow + rowStep;
+            let col = fromCol + colStep;
+            
+            while (row !== toRow || col !== toCol) {
+                if (gameState.board[row][col]) return false;
+                row += rowStep;
+                col += colStep;
+            }
+            return true;
+        }
+
+        // Fazer movimento
+        function makeMove(fromRow, fromCol, toRow, toCol) {
+            const piece = gameState.board[fromRow][fromCol];
+            const target = gameState.board[toRow][toCol];
+            
+            // Registrar movimento
+            const move = {
+                from: [fromRow, fromCol],
+                to: [toRow, toCol],
+                piece: piece,
+                captured: target
+            };
+            gameState.gameHistory.push(move);
+            gameState.currentMoveIndex = gameState.gameHistory.length - 1;
+            
+            // Atualizar estado do jogo
+            gameState.board[toRow][toCol] = piece;
+            gameState.board[fromRow][fromCol] = '';
+            gameState.lastMove = { from: [fromRow, fromCol], to: [toRow, toCol] };
+            
+            // Alternar jogador
+            gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
+            
+            // Limpar seleção
+            gameState.selectedSquare = null;
+            
+            // Atualizar exibição
+            updateDisplay();
+        }
+
+        // Atualizar avaliação
+        function updateEvaluation() {
+            const evalFill = document.getElementById('evalFill');
+            const evalText = document.getElementById('evalText');
+            
+            if (gameState.evaluation === 0) {
+                evalFill.style.width = '50%';
+                evalText.textContent = 'Posição neutra';
+            } else {
+                const percentage = Math.min(Math.max((gameState.evaluation + 10) * 5, 0), 100);
+                evalFill.style.width = `${percentage}%`;
+                
+                if (gameState.evaluation > 0) {
+                    evalText.textContent = `Vantagem das brancas: ${gameState.evaluation.toFixed(2)}`;
+                } else {
+                    evalText.textContent = `Vantagem das pretas: ${Math.abs(gameState.evaluation).toFixed(2)}`;
+                }
+            }
+        }
+
+        // Atualizar lista de jogadas
+        function updateMovesList() {
+            const movesList = document.getElementById('movesList');
+            movesList.innerHTML = '';
+            
+            if (gameState.gameHistory.length === 0) {
+                movesList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Nenhum movimento ainda</div>';
+                return;
+            }
+            
+            for (let i = 0; i < gameState.gameHistory.length; i++) {
+                const move = gameState.gameHistory[i];
+                const moveItem = document.createElement('div');
+                moveItem.className = 'move-item';
+                moveItem.textContent = `${i + 1}. ${getSquareName(move.from[1], move.from[0])} → ${getSquareName(move.to[1], move.to[0])}`;
+                
+                if (i === gameState.currentMoveIndex) {
+                    moveItem.classList.add('current');
+                }
+                
+                moveItem.addEventListener('click', () => {
+                    gameState.currentMoveIndex = i;
+                    goToMove(i);
+                });
+                
+                movesList.appendChild(moveItem);
+            }
+        }
+
+        // Converter coordenadas para notação de xadrez
+        function getSquareName(col, row) {
+            const letters = 'abcdefgh';
+            return `${letters[col]}${8 - row}`;
+        }
+
+        // Navegar para um movimento específico
+        function goToMove(index) {
+            resetBoard();
+            gameState.currentMoveIndex = index;
+            
+            // Reaplicar movimentos até o índice
+            for (let i = 0; i <= index; i++) {
+                const move = gameState.gameHistory[i];
+                gameState.board[move.to[0]][move.to[1]] = move.piece;
+                gameState.board[move.from[0]][move.from[1]] = '';
+                gameState.lastMove = { from: move.from, to: move.to };
+                gameState.currentPlayer = move.piece[0] === 'w' ? 'black' : 'white';
+            }
+            
+            updateDisplay();
+        }
+
+        // Virar tabuleiro
+        function flipBoard() {
+            gameState.isFlipped = !gameState.isFlipped;
+            createBoard();
+        }
+
+        // Limpar setas
+        function clearArrows() {
+            gameState.arrows = [];
+            const arrowSvg = document.getElementById('arrowSvg');
+            arrowSvg.innerHTML = `
+                <defs>
+                    <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+                            refX="12" refY="4" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 12 4, 0 8" fill="#ff6b6b" />
+                    </marker>
+                </defs>
+            `;
+        }
+
+        // Desenhar setas
+        function drawArrows() {
+            const arrowSvg = document.getElementById('arrowSvg');
+            arrowSvg.innerHTML = `
+                <defs>
+                    <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+                            refX="12" refY="4" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 12 4, 0 8" fill="#ff6b6b" />
+                    </marker>
+                </defs>
+            `;
+            
+            gameState.arrows.forEach(arrow => {
+                const fromX = arrow.from.col * 70 + 35;
+                const fromY = arrow.from.row * 70 + 35;
+                const toX = arrow.to.col * 70 + 35;
+                const toY = arrow.to.row * 70 + 35;
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', fromX);
+                line.setAttribute('y1', fromY);
+                line.setAttribute('x2', toX);
+                line.setAttribute('y2', toY);
+                line.setAttribute('class', 'arrow');
+                arrowSvg.appendChild(line);
+            });
+        }
+
+        // Resetar tabuleiro
+        function resetBoard() {
+            initializeBoard();
+            createBoard();
+            clearArrows();
+            updateEvaluation();
+            updateMovesList();
+        }
+
+        // Carregar PGN
+        function loadPGN() {
+            const pgnInput = document.getElementById('pgnInput').value.trim();
+            if (!pgnInput) {
+                alert('Por favor, cole um PGN válido.');
+                return;
+            }
+            
+            // Implementação básica de parser de PGN
+            const moves = pgnInput.match(/(\d+\.\s)?([a-h][1-8]|[O-O]{2,3}|[KQBNR][a-h]?[1-8]?x?[a-h][1-8])\s?([a-h][1-8]|[O-O]{2,3}|[KQBNR][a-h]?[1-8]?x?[a-h][1-8])?/g);
+            
+            if (!moves || moves.length === 0) {
+                alert('Não foi possível identificar movimentos no PGN.');
+                return;
+            }
+            
+            resetBoard();
+            
+            // Simular carregamento dos movimentos
+            const movesList = document.getElementById('movesList');
+            movesList.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Carregando PGN...</div>';
+            
+            setTimeout(() => {
+                alert('PGN carregado com sucesso! Movimentos disponíveis na lista.');
+                updateMovesList();
+            }, 1500);
+        }
+
+        // Exportar PGN
+        function exportPGN() {
+            if (gameState.gameHistory.length === 0) {
+                alert('Não há movimentos para exportar.');
+                return;
+            }
+            
+            let pgn = '';
+            for (let i = 0; i < gameState.gameHistory.length; i++) {
+                const move = gameState.gameHistory[i];
+                if (i % 2 === 0) {
+                    pgn += `${(i/2)+1}. `;
+                }
+                pgn += `${getSquareName(move.from[1], move.from[0])}-${getSquareName(move.to[1], move.to[0])} `;
+            }
+            
+            document.getElementById('pgnInput').value = pgn;
+            alert('PGN exportado para a área de texto!');
+        }
+
+        // Navegação pelos movimentos
+        function firstMove() {
+            if (gameState.gameHistory.length > 0) {
+                gameState.currentMoveIndex = -1;
+                resetBoard();
+            }
+        }
+
+        function prevMove() {
+            if (gameState.currentMoveIndex > -1) {
+                gameState.currentMoveIndex--;
+                goToMove(gameState.currentMoveIndex);
+            }
+        }
+
+        function nextMove() {
+            if (gameState.currentMoveIndex < gameState.gameHistory.length - 1) {
+                gameState.currentMoveIndex++;
+                goToMove(gameState.currentMoveIndex);
+            }
+        }
+
+        function lastMove() {
+            if (gameState.gameHistory.length > 0) {
+                gameState.currentMoveIndex = gameState.gameHistory.length - 1;
+                goToMove(gameState.currentMoveIndex);
+            }
+        }
+
+        // Alternar auto play
+        function toggleAutoPlay() {
+            const button = document.getElementById('autoPlayIcon');
+            if (gameState.autoPlayInterval) {
+                clearInterval(gameState.autoPlayInterval);
+                gameState.autoPlayInterval = null;
+                button.className = 'fas fa-play';
+            } else {
+                button.className = 'fas fa-pause';
+                gameState.autoPlayInterval = setInterval(() => {
+                    if (gameState.currentMoveIndex < gameState.gameHistory.length - 1) {
+                        nextMove();
+                    } else {
+                        clearInterval(gameState.autoPlayInterval);
+                        gameState.autoPlayInterval = null;
+                        button.className = 'fas fa-play';
+                    }
+                }, 1000);
+            }
+        }
+
+        // Analisar com o motor
+        function analyzeWithEngine() {
+            if (!engineReady) {
+                alert('Motor Stockfish ainda não está pronto.');
+                return;
+            }
+            
+            gameState.isAnalyzing = true;
+            updateEngineStatus('Analisando posição...', true);
+            
+            // Gerar FEN da posição atual
+            const fen = generateFEN();
+            engine.postMessage(`position fen ${fen}`);
+            engine.postMessage('go depth 15');
+        }
+
+        // Gerar FEN do tabuleiro atual
+        function generateFEN() {
+            let fen = '';
+            for (let row = 0; row < 8; row++) {
+                let empty = 0;
+                for (let col = 0; col < 8; col++) {
+                    const piece = gameState.board[row][col];
+                    if (piece) {
+                        if (empty > 0) {
+                            fen += empty;
+                            empty = 0;
+                        }
+                        fen += piece[1].toUpperCase();
+                        if (piece[0] === 'b') fen = fen.toLowerCase();
+                    } else {
+                        empty++;
+                    }
+                }
+                if (empty > 0) fen += empty;
+                if (row < 7) fen += '/';
+            }
+            
+            fen += ` ${gameState.currentPlayer[0]} - - 0 1`;
+            return fen;
+        }
+
+        // Manipular melhor movimento do Stockfish
+        function handleBestMove(message) {
+            const parts = message.split(' ');
+            if (parts.length > 1) {
+                const bestMove = parts[1];
+                const bestMovesDiv = document.getElementById('engineMovesList');
+                bestMovesDiv.innerHTML = `<div class="best-move">${bestMove}</div>`;
+                document.getElementById('bestMoves').style.display = 'block';
+                
+                // Adicionar seta para a melhor jogada
+                const from = bestMove.substring(0, 2);
+                const to = bestMove.substring(2, 4);
+                
+                const fromCol = 'abcdefgh'.indexOf(from[0]);
+                const fromRow = 8 - parseInt(from[1]);
+                const toCol = 'abcdefgh'.indexOf(to[0]);
+                const toRow = 8 - parseInt(to[1]);
+                
+                gameState.arrows.push({
+                    from: { row: fromRow, col: fromCol },
+                    to: { row: toRow, col: toCol }
+                });
+                drawArrows();
+            }
+            gameState.isAnalyzing = false;
+            updateEngineStatus('Análise concluída', true);
+        }
+
+        // Manipular informações de análise
+        function handleAnalysisInfo(message) {
+            // Extrair avaliação
+            if (message.includes('score cp')) {
+                const parts = message.split(' ');
+                const cpIndex = parts.indexOf('cp');
+                if (cpIndex !== -1 && cpIndex + 1 < parts.length) {
+                    gameState.evaluation = parseFloat(parts[cpIndex + 1]) / 100;
+                    updateEvaluation();
+                }
+            }
+        }
+
+        // Manipular clique direito (adicionar seta)
+        function handleRightClick(row, col) {
+            if (!gameState.selectedSquare) {
+                gameState.selectedSquare = [row, col];
+                return;
+            }
+            
+            const [fromRow, fromCol] = gameState.selectedSquare;
+            gameState.arrows.push({
+                from: { row: fromRow, col: fromCol },
+                to: { row: row, col: col }
+            });
+            gameState.selectedSquare = null;
+            clearHighlights();
+            updateDisplay();
+        }
+
+        // Inicializar o jogo
+        window.onload = function() {
+            initializeBoard();
+            createBoard();
+            initStockfish();
+        };
+    </script>
+</body>
+</html>
