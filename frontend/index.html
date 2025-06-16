@@ -3,123 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisador de Xadrez com IA - Stockfish</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Analisador de Xadrez</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <div class="chess-section">
-            <h1><i class="fas fa-chess"></i> Analisador de Xadrez Pro</h1>
+        <div class="chess-board-container">
+            <h1 style="margin-bottom: 20px; text-align: center; color: #4fc3f7;">Analisador de Xadrez</h1>
             
-            <div class="evaluation-container">
-                <div class="evaluation-bar">
-                    <div class="eval-fill" id="evalFill"></div>
-                </div>
-                <div class="eval-text" id="evalText">Carregando análise...</div>
-            </div>
-            
-            <div class="board-container">
-                <div class="chessboard" id="chessboard">
-                    <svg class="svg-overlay" id="arrowSvg">
-                        <defs>
-                            <marker id="arrowhead" markerWidth="12" markerHeight="8" 
-                                    refX="12" refY="4" orient="auto" markerUnits="strokeWidth">
-                                <polygon points="0 0, 12 4, 0 8" fill="#ff6b6b" />
-                            </marker>
-                        </defs>
-                    </svg>
-                </div>
-            </div>
-            
-            <div class="button-group">
-                <button class="btn-secondary" onclick="flipBoard()">
-                    <i class="fas fa-sync-alt"></i> Virar Tabuleiro
-                </button>
-                <button class="btn-secondary" onclick="clearArrows()">
-                    <i class="fas fa-eraser"></i> Limpar Setas
-                </button>
-                <button class="btn-primary" onclick="resetBoard()">
-                    <i class="fas fa-redo"></i> Resetar
-                </button>
+            <div class="board-wrapper">
+                <!-- Coordenadas dos arquivos (a-h) -->
+                <div class="coordinates coord-file" style="left: 30px;">a</div>
+                <div class="coordinates coord-file" style="left: 90px;">b</div>
+                <div class="coordinates coord-file" style="left: 150px;">c</div>
+                <div class="coordinates coord-file" style="left: 210px;">d</div>
+                <div class="coordinates coord-file" style="left: 270px;">e</div>
+                <div class="coordinates coord-file" style="left: 330px;">f</div>
+                <div class="coordinates coord-file" style="left: 390px;">g</div>
+                <div class="coordinates coord-file" style="left: 450px;">h</div>
+                
+                <!-- Coordenadas das fileiras (1-8) -->
+                <div class="coordinates coord-rank" style="top: 30px;">8</div>
+                <div class="coordinates coord-rank" style="top: 90px;">7</div>
+                <div class="coordinates coord-rank" style="top: 150px;">6</div>
+                <div class="coordinates coord-rank" style="top: 210px;">5</div>
+                <div class="coordinates coord-rank" style="top: 270px;">4</div>
+                <div class="coordinates coord-rank" style="top: 330px;">3</div>
+                <div class="coordinates coord-rank" style="top: 390px;">2</div>
+                <div class="coordinates coord-rank" style="top: 450px;">1</div>
+                
+                <div class="chess-board" id="chessBoard"></div>
             </div>
         </div>
 
-        <div class="controls-section">
-            <div class="control-group">
-                <h3><i class="fas fa-file-import"></i> Importar PGN</h3>
-                <textarea class="pgn-input" id="pgnInput" 
-                         placeholder="Cole aqui o PGN do jogo...&#10;&#10;Exemplo:&#10;1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6"></textarea>
-                
-                <div class="button-group" style="margin-top: 15px;">
-                    <button class="btn-primary" onclick="loadPGN()">
-                        <i class="fas fa-upload"></i> Carregar PGN
-                    </button>
-                    <button class="btn-secondary" onclick="exportPGN()">
-                        <i class="fas fa-download"></i> Exportar PGN
-                    </button>
+        <div class="analysis-panel">
+            <div class="panel-section">
+                <h3>Status do Jogo</h3>
+                <div class="game-info">
+                    <div class="status" id="gameStatus">Vez das Brancas</div>
+                    <div>Jogada: <span id="moveNumber">1</span></div>
                 </div>
             </div>
 
-            <div class="control-group">
-                <h3><i class="fas fa-gamepad"></i> Controles de Navegação</h3>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="firstMove()">
-                        <i class="fas fa-fast-backward"></i> Início
-                    </button>
-                    <button class="btn-primary" onclick="prevMove()">
-                        <i class="fas fa-step-backward"></i> Anterior
-                    </button>
-                    <button class="btn-primary" onclick="nextMove()">
-                        <i class="fas fa-step-forward"></i> Próxima
-                    </button>
-                    <button class="btn-primary" onclick="lastMove()">
-                        <i class="fas fa-fast-forward"></i> Final
-                    </button>
-                </div>
-
-                <div class="button-group" style="margin-top: 10px;">
-                    <button class="btn-success" onclick="toggleAutoPlay()">
-                        <i class="fas fa-play" id="autoPlayIcon"></i> Auto Play
-                    </button>
-                    <button class="btn-secondary" onclick="analyzeWithEngine()">
-                        <i class="fas fa-brain"></i> Analisar IA
-                    </button>
+            <div class="panel-section">
+                <h3>Controles</h3>
+                <div class="controls">
+                    <button onclick="resetGame()">Nova Partida</button>
+                    <button onclick="undoMove()" id="undoBtn">Desfazer</button>
+                    <button onclick="analyzePosition()" id="analyzeBtn">Analisar</button>
                 </div>
             </div>
 
-            <div class="control-group">
-                <h3><i class="fas fa-list"></i> Lista de Jogadas</h3>
-                <div class="moves-list" id="movesList">
-                    <div style="text-align: center; color: #666; padding: 20px;">
-                        Nenhum movimento ainda
+            <div class="panel-section">
+                <h3>Avaliação</h3>
+                <div class="evaluation">
+                    <div>Avaliação: <span id="evaluation">+0.00</span></div>
+                    <div class="eval-bar">
+                        <div class="eval-bar-fill" id="evalBarFill" style="width: 50%;"></div>
+                        <div class="eval-text" id="evalText">+0.00</div>
                     </div>
+                    <div>Melhor jogada: <span id="bestMove">-</span></div>
                 </div>
             </div>
 
-            <div class="analysis-panel">
-                <h3><i class="fas fa-microchip"></i> Análise Stockfish</h3>
-                
-                <div class="engine-status" id="engineStatus">
-                    <div class="status-indicator"></div>
-                    <span>Motor Stockfish carregado e pronto</span>
-                </div>
-
-                <div id="analysisContent">
-                    <p>Clique em "Analisar IA" para obter uma avaliação detalhada da posição atual usando o motor Stockfish.</p>
-                    
-                    <div class="best-moves" id="bestMoves" style="display: none;">
-                        <strong>Melhores jogadas:</strong>
-                        <div id="engineMovesList"></div>
+            <div class="panel-section">
+                <h3>Histórico de Jogadas</h3>
+                <div class="move-list" id="moveList">
+                    <div style="color: #999; text-align: center; padding: 20px;">
+                        Nenhuma jogada ainda
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="footer">
-        <p>&copy; 2023 Analisador de Xadrez Pro. Todos os direitos reservados.</p>
-        <p>Desenvolvido por <a href="https://github.com/MATHEUSBRr" target="_blank">Matheus Brasileiro</a></p>
-        <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
