@@ -1027,62 +1027,134 @@
             updateFEN();
         }
 
-        // Analisar posição com Stockfish
-        async function analyzePosition() {
+            let openings = [];
+
+            async function loadOpenings() {
+            try {
+                const res = await fetch('aberturas.json');
+                openings = await res.json();
+            } catch (e) {
+                console.error('Erro ao carregar aberturas:', e);
+            }
+            }
+
+          function normalizeFen(fen) {
+            // Pega só a parte das peças (antes do primeiro espaço)
+            return fen.split(' ')[0];
+            }
+
+
+            function findOpening(fen) {
+            const normFen = normalizeFen(fen);
+            for (const opening of openings) {
+                if (normalizeFen(opening.fen) === normFen) {
+                return opening.name;
+                }
+            }
+            return 'Desconhecida';
+            }
+
+            function updateOpening(openingName) {
+            const openingElement = document.getElementById('openingName');
+            if (openingElement) {
+                openingElement.textContent = openingName;
+            }
+        }
+
+
+            // Analisar posição com Stockfish
+            function updateEvaluation(evaluation, bestMove, mateIn) {
+                let evalText = evaluation !== null ? (evaluation > 0 ? `+${evaluation.toFixed(2)}` : evaluation.toFixed(2)) : "Mate";
+                if (mateIn !== null) evalText += ` em ${Math.abs(mateIn)} lances`;
+
+                document.getElementById('evaluation').textContent = evalText;
+                document.getElementById('bestMove').textContent = bestMove || '-';
+
+                // Atualizar barra de avaliação
+                if (evaluation !== null) {
+                    const percentage = Math.min(Math.max((evaluation + 5) / 10 * 100, 0), 100);
+                    document.getElementById('evalBarFill').style.width = percentage + '%';
+                    document.getElementById('evalText').textContent = evalText;
+                } else {
+                    document.getElementById('evalBarFill').style.width = evaluation > 0 ? '100%' : '0%';
+                    document.getElementById('evalText').textContent = evalText;
+                }
+            }
+
+
+            async function analyzePosition() {
             const button = document.getElementById('analyzeBtn');
             button.disabled = true;
             button.innerHTML = '<span class="loading">⟳</span> Analisando...';
 
             try {
                 const fen = generateFEN();
-                
-                // Para demonstração, vamos simular uma análise
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Em um cenário real, você faria:
-                // const response = await fetch('http://localhost:3001/analyze', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify({ fen, depth: 18 })
-                // });
-                // const data = await response.json();
-                
-                // Simulação de resposta do Stockfish
-                const simulatedResponse = {
-                    evaluation: Math.random() * 4 - 2,
-                    bestmove: 'e2e4'
-                };
-                
-                updateEvaluation(simulatedResponse.evaluation, simulatedResponse.bestmove);
+
+                const response = await fetch("http://localhost:5000/analyze", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fen })
+                });
+
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                updateEvaluation(data.evaluation, data.bestmove, data.mate_in);
+                updateOpening(data.opening);
             } catch (error) {
-                console.error('Erro na análise:', error);
-                alert('Erro ao conectar ao Stockfish!');
+                console.error("Erro na análise:", error);
+                alert("Erro ao conectar ao Stockfish!");
             } finally {
                 button.disabled = false;
-                button.textContent = 'Analisar';
+                button.textContent = "Analisar";
             }
         }
 
-        // Atualizar avaliação na interface
-        function updateEvaluation(eval, bestMove) {
-            let evalText = '';
-            
-            if (eval !== null) {
-                evalText = eval > 0 ? `+${eval.toFixed(2)}` : eval.toFixed(2);
-            } else if (bestMove) {
-                evalText = 'Mate';
+            function generateFEN() {
+            const pieceMap = {
+                'P': 'P', 'N': 'N', 'B': 'B', 'R': 'R', 'Q': 'Q', 'K': 'K',
+                'p': 'p', 'n': 'n', 'b': 'b', 'r': 'r', 'q': 'q', 'k': 'k'
+            };
+
+            let fen = '';
+            for (let row = 0; row < 8; row++) {
+                let emptyCount = 0;
+                for (let col = 0; col < 8; col++) {
+                    const piece = gameState.board[row][col];
+                    if (!piece) {
+                        emptyCount++;
+                    } else {
+                        if (emptyCount > 0) {
+                            fen += emptyCount;
+                            emptyCount = 0;
+                        }
+                        fen += pieceMap[piece] || '?'; // Mapeia para FEN ou ? se indefinido
+                    }
+                }
+                if (emptyCount > 0) fen += emptyCount;
+                if (row < 7) fen += '/';
             }
 
-            document.getElementById('evaluation').textContent = evalText;
-            document.getElementById('bestMove').textContent = bestMove || '-';
-            
-            // Atualizar barra de avaliação
-            if (eval !== null) {
-                const percentage = Math.min(Math.max((eval + 5) / 10 * 100, 0), 100);
-                document.getElementById('evalBarFill').style.width = percentage + '%';
-                document.getElementById('evalText').textContent = evalText;
-            }
+            // Turno atual (w ou b)
+            const turn = gameState.turn || 'w';
+
+            // Roque e en passant: você pode aprimorar isso depois
+            const castling = '-';
+            const enPassant = '-';
+
+            // Meio-lances e número do lance (você pode atualizar isso conforme implementa contagem)
+            const halfmoveClock = 0;
+            const fullmoveNumber = gameState.fullmove || 1;
+
+            return `${fen} ${turn} ${castling} ${enPassant} ${halfmoveClock} ${fullmoveNumber}`;
         }
+
+
+            document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);
+
+            // Carrega as aberturas ao iniciar
+            loadOpenings();
 
         // Vincular eventos
         function attachEventListeners() {

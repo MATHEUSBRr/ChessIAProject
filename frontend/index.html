@@ -50,7 +50,6 @@
                 <div class="controls">
                     <button onclick="resetGame()">Nova Partida</button>
                     <button onclick="undoMove()" id="undoBtn">Desfazer</button>
-                    <button onclick="analyzePosition()" id="analyzeBtn">Analisar</button>
                 </div>
             </div>
 
@@ -63,6 +62,8 @@
                         <div class="eval-text" id="evalText">+0.00</div>
                     </div>
                     <div>Melhor jogada: <span id="bestMove">-</span></div>
+                    <div>Abertura: <span id="openingName">-</span></div>
+                    <button id="analyzeBtn" onclick="analyzePosition()">Analisar</button>
                 </div>
             </div>
 
