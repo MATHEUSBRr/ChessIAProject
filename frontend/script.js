@@ -210,62 +210,71 @@
 
         // Jogadas do peão (CORREÇÃO: En Passant)
         function getPawnMoves(row, col, piece) {
-            const moves = [];
-            const isWhite = piece === piece.toUpperCase();
-            const direction = isWhite ? -1 : 1;
-            const startRow = isWhite ? 6 : 1;
-            const enPassantRow = isWhite ? 3 : 4;
+        const moves = [];
+        const isWhite = piece === piece.toUpperCase();
+        const direction = isWhite ? -1 : 1;
+        const startRow = isWhite ? 6 : 1;
+        const enPassantRow = isWhite ? 3 : 4;
 
-            // Movimento para frente (um passo)
-            if (isValidPosition(row + direction, col) && !gameState.board[row + direction][col]) {
+        // Movimento para frente (um passo)
+        if (isValidPosition(row + direction, col) && !gameState.board[row + direction][col]) {
+            moves.push({
+                from: getSquareName(row, col),
+                to: getSquareName(row + direction, col),
+                piece: piece
+            });
+
+            // Movimento duplo inicial (dois passos)
+            if (row === startRow && !gameState.board[row + 2 * direction][col]) {
                 moves.push({
                     from: getSquareName(row, col),
-                    to: getSquareName(row + direction, col),
-                    piece: piece
+                    to: getSquareName(row + 2 * direction, col),
+                    piece: piece,
+                    isDoubleStep: true
                 });
+            }
+        }
 
-                // Movimento duplo inicial (dois passos)
-                if (row === startRow && !gameState.board[row + 2 * direction][col]) {
+        // Capturas diagonais normais
+        for (const dcol of [-1, 1]) {
+            const targetRow = row + direction;
+            const targetCol = col + dcol;
+            if (isValidPosition(targetRow, targetCol)) {
+                const targetPiece = gameState.board[targetRow][targetCol];
+                if (targetPiece && isOpponentPiece(piece, targetPiece)) {
                     moves.push({
                         from: getSquareName(row, col),
-                        to: getSquareName(row + 2 * direction, col),
+                        to: getSquareName(targetRow, targetCol),
                         piece: piece,
-                        isDoubleStep: true
+                        capture: targetPiece
                     });
                 }
             }
+        }
 
-            // Capturas diagonais normais
-            for (const dcol of [-1, 1]) {
-                if (isValidPosition(row + direction, col + dcol)) {
-                    const targetPiece = gameState.board[row + direction][col + dcol];
-                    if (targetPiece && isOpponentPiece(piece, targetPiece)) {
-                        moves.push({
-                            from: getSquareName(row, col),
-                            to: getSquareName(row + direction, col + dcol),
-                            piece: piece,
-                            capture: targetPiece
-                        });
-                    }
-                }
-            }
-
-            // Captura en passant (CORREÇÃO)
-            if (gameState.enPassantTarget && row === enPassantRow) {
-                const epCoords = getSquareCoords(gameState.enPassantTarget);
-                if (Math.abs(col - epCoords.col) === 1) {
+        // Captura en passant (correção completa)
+        if (gameState.enPassantTarget) {
+            const epCoords = getSquareCoords(gameState.enPassantTarget);
+            if (row === enPassantRow && Math.abs(col - epCoords.col) === 1 && epCoords.row === row + direction) {
+                const adjacentPiece = gameState.board[row][epCoords.col];
+                if (
+                    adjacentPiece &&
+                    isOpponentPiece(piece, adjacentPiece) &&
+                    (adjacentPiece === 'p' || adjacentPiece === 'P') // opcional: garante que seja peão
+                ) {
                     moves.push({
                         from: getSquareName(row, col),
                         to: gameState.enPassantTarget,
                         piece: piece,
-                        capture: true,
+                        capture: adjacentPiece,
                         isEnPassant: true
                     });
                 }
             }
-
-            return moves;
         }
+
+        return moves;
+    }
 
         // Jogadas da torre
         function getRookMoves(row, col, piece) {
@@ -478,7 +487,8 @@
 
             // Tratar captura en passant
             if (move.isEnPassant) {
-                const capturedRow = piece === 'P' ? toCoords.row + 1 : toCoords.row - 1;
+                const isWhite = piece === piece.toUpperCase();
+                const capturedRow = isWhite ? toCoords.row + 1 : toCoords.row - 1;
                 gameState.board[capturedRow][toCoords.col] = null;
             }
 
@@ -591,56 +601,65 @@
             document.body.appendChild(modal);
         }
 
-        // Fazer uma jogada (CORREÇÕES: En Passant, Roque e Promoção)
         function makeMove(from, to) {
             const fromCoords = getSquareCoords(from);
             const toCoords = getSquareCoords(to);
-            
+
             const piece = gameState.board[fromCoords.row][fromCoords.col];
             const capturedPiece = gameState.board[toCoords.row][toCoords.col];
             const isWhite = piece === piece.toUpperCase();
 
-            // Registrar a jogada
             const move = {
                 from: from,
                 to: to,
                 piece: piece,
-                capture: capturedPiece,
+                capture: capturedPiece || null,
                 moveNumber: gameState.moveNumber
             };
 
-            // Tratar roque (CORREÇÃO: mover a torre também)
-            if (move.castle) {
-                const backRank = isWhite ? 7 : 0;
-                
-                if (move.castle === 'king') {
-                    // Mover torre do canto para ao lado do rei
-                    gameState.board[backRank][7] = null;
-                    gameState.board[backRank][5] = isWhite ? 'R' : 'r';
-                    move.rookMove = { from: getSquareName(backRank, 7), to: getSquareName(backRank, 5) };
-                } else {
-                    // Mover torre do outro lado
-                    gameState.board[backRank][0] = null;
-                    gameState.board[backRank][3] = isWhite ? 'R' : 'r';
-                    move.rookMove = { from: getSquareName(backRank, 0), to: getSquareName(backRank, 3) };
-                }
+            // Detectar Roque
+            if (piece.toLowerCase() === 'k' && Math.abs(toCoords.col - fromCoords.col) === 2) {
+                move.castle = (toCoords.col === 6) ? 'king' : 'queen';
             }
 
-            // Fazer a jogada no tabuleiro (mover peça)
+            // Executar o movimento do rei
             gameState.board[fromCoords.row][fromCoords.col] = null;
             gameState.board[toCoords.row][toCoords.col] = piece;
 
-            // Tratar en passant (CORREÇÃO: remover o peão capturado)
-            if (move.isEnPassant) {
+            // Tratar Roque (mover também a torre)
+            if (move.castle) {
+                const backRank = isWhite ? 7 : 0;
+
+                if (move.castle === 'king') {
+                    // Torre do lado do rei: h1 → f1 ou h8 → f8
+                    gameState.board[backRank][7] = null;
+                    gameState.board[backRank][5] = isWhite ? 'R' : 'r';
+                    move.rookMove = {
+                        from: getSquareName(backRank, 7),
+                        to: getSquareName(backRank, 5)
+                    };
+                } else if (move.castle === 'queen') {
+                    // Torre do lado da dama: a1 → d1 ou a8 → d8
+                    gameState.board[backRank][0] = null;
+                    gameState.board[backRank][3] = isWhite ? 'R' : 'r';
+                    move.rookMove = {
+                        from: getSquareName(backRank, 0),
+                        to: getSquareName(backRank, 3)
+                    };
+                }
+            }
+
+            // Tratar En Passant
+            if (piece.toLowerCase() === 'p' && gameState.enPassantTarget === to) {
                 const capturedRow = isWhite ? toCoords.row + 1 : toCoords.row - 1;
                 gameState.board[capturedRow][toCoords.col] = null;
                 move.capture = isWhite ? 'p' : 'P';
+                move.isEnPassant = true;
             }
 
-            // Promoção do peão (CORREÇÃO: mostrar modal para escolher peça)
+            // Promoção
             if (piece.toLowerCase() === 'p') {
                 if ((piece === 'P' && toCoords.row === 0) || (piece === 'p' && toCoords.row === 7)) {
-                    // Mostrar modal para escolher peça
                     showPromotionModal(to, piece);
                     move.promotion = true;
                 }
@@ -661,29 +680,28 @@
                 if (from === 'a8') gameState.castlingRights.blackQueenSide = false;
             }
 
-            // Atualizar alvo en passant
+            // Atualizar alvo de en passant
             gameState.enPassantTarget = null;
-            if (piece.toLowerCase() === 'p' && move.isDoubleStep) {
+            if (piece.toLowerCase() === 'p' && Math.abs(toCoords.row - fromCoords.row) === 2) {
                 const enPassantRow = fromCoords.row + (isWhite ? -1 : 1);
                 gameState.enPassantTarget = getSquareName(enPassantRow, fromCoords.col);
+                move.isDoubleStep = true;
             }
 
-            // Registrar jogada no histórico
+            // Registrar jogada
             gameState.moveHistory.push(move);
             gameState.lastMove = move;
 
-            // Se não for promoção, trocar jogador imediatamente
+            // Trocar jogador (caso não seja promoção ainda pendente)
             if (!move.promotion) {
                 gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
-                
                 if (gameState.currentPlayer === 'white') {
                     gameState.moveNumber++;
                 }
             }
 
-            // Verificar status do jogo
+            // Atualizar interface
             updateGameStatus();
-
             clearSelection();
             createBoard();
             updateGameInfo();
