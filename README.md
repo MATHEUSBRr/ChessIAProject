@@ -51,7 +51,7 @@ Esse projeto pode ser utilizado como ferramenta de estudo para jogadores de xadr
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/ChessIAProject.git
+git clone https://github.com/MATHEUSBRr/ChessIAProject.git
 cd ChessIAProject
 2. Instale as dependências do backend
 Use o terminal e instale as bibliotecas necessárias (recomenda-se Python 3.12 ou superior):
@@ -65,9 +65,6 @@ Você pode baixá-lo aqui: https://stockfishchess.org/download/
 ⚠️ Certifique-se de que o nome do arquivo seja exatamente stockfish.exe.
 
 4. Rode o servidor backend
-bash
-Copiar
-Editar
 cd backend
 python app.py
 O backend estará disponível em http://localhost:5000.
