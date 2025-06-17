@@ -41,6 +41,12 @@ def analyze():
             best_move = result.get("pv")[0].uci() if "pv" in result else None
             score = result["score"]
 
+            # Extrair linha de análise (principal variation)
+            pv_lines = []
+            if "pv" in result:
+                for move in result["pv"]:
+                    pv_lines.append(move.uci())
+
             # Interpreta o score do lado da vez
             if is_white_to_move:
                 analysis_score = score.white()
@@ -61,7 +67,8 @@ def analyze():
                 "evaluation": evaluation,
                 "mate_in": mate_in,
                 "opening": opening,
-                "turn": "white" if is_white_to_move else "black"
+                "turn": "white" if is_white_to_move else "black",
+                "pv_lines": pv_lines  # <-- Adicionado aqui!
             })
 
     except Exception as e:

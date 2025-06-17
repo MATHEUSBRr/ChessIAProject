@@ -1102,6 +1102,7 @@
 
                 updateEvaluation(data.evaluation, data.bestmove, data.mate_in);
                 updateOpening(data.opening);
+                updatePvLines(data.pv_lines);
             } catch (error) {
                 console.error("Erro na análise:", error);
                 alert("Erro ao conectar ao Stockfish!");
@@ -1155,6 +1156,23 @@
 
             // Carrega as aberturas ao iniciar
             loadOpenings();
+
+            function updatePvLines(lines) {
+            const pvContainer = document.getElementById("pvLines");
+            pvContainer.innerHTML = "";
+
+            if (!lines || lines.length === 0) {
+                pvContainer.innerHTML = `<div style="color: #999; text-align: center; padding: 20px;">Nenhuma análise ainda</div>`;
+                return;
+            }
+
+            lines.forEach((line, index) => {
+                const div = document.createElement("div");
+                div.className = "pv-line-item";
+                div.textContent = `Linha ${index + 1}: ${line}`;
+                pvContainer.appendChild(div);
+            });
+        }
 
         // Vincular eventos
         function attachEventListeners() {

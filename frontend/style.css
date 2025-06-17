@@ -312,3 +312,40 @@
                 max-height: 500px;
             }
         }
+        .pv-lines-panel {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            height: fit-content;
+            max-width: 250px;
+        }
+
+        .pv-lines-panel h3 {
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4fc3f7;
+            padding-bottom: 8px;
+        }
+
+        #pvLines {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .pv-line-item {
+            margin-bottom: 8px;
+            padding: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .container {
+            grid-template-columns: 250px 1fr 400px; /* esquerda - tabuleiro - direita */
+        }
