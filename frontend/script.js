@@ -1137,7 +1137,7 @@
             }
 
             // Turno atual (w ou b)
-            const turn = gameState.turn || 'w';
+           const turn = gameState.currentPlayer === 'black' ? 'b' : 'w';
 
             // Roque e en passant: você pode aprimorar isso depois
             const castling = '-';
