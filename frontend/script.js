@@ -1173,7 +1173,82 @@
                 pvContainer.appendChild(div);
             });
         }
+        
+            // Atualizar a função importPGN para extrair as jogadas e popular o histórico
+            function importPGN() {
+                const input = document.getElementById('pgnInput');
+                const file = input.files[0];
+                const resultDiv = document.getElementById('pgnResult');
+                resultDiv.innerHTML = 'Analisando...';
 
+                if (!file) {
+                    resultDiv.innerHTML = '<span style="color: red;">Nenhum arquivo selecionado.</span>';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const pgn = e.target.result;
+
+                    fetch('http://127.0.0.1:5000/analyze_pgn', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pgn })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            resultDiv.innerHTML = `<span style="color: red;">Erro: ${data.error}</span>`;
+                            return;
+                        }
+
+                        // Atualiza resultado da análise no div
+                        const {
+                            total_moves,
+                            correct_moves,
+                            mistakes,
+                            blunders,
+                            inaccuracies,
+                            score,
+                            level,
+                            precision,
+                            best_moves,
+                            final_fen,
+                            moves // vou assumir que o backend retorne um array com as jogadas em SAN
+                        } = data;
+
+                        resultDiv.innerHTML = `
+                            <div class="result-item">Total de jogadas: <strong>${total_moves}</strong></div>
+                            <div class="result-item">Acertos: <strong>${correct_moves}</strong></div>
+                            <div class="result-item">Erros: <strong>${mistakes}</strong></div>
+                            <div class="result-item">Erros graves (blunders): <strong>${blunders}</strong></div>
+                            <div class="result-item">Imprecisões: <strong>${inaccuracies}</strong></div>
+                            <div class="result-item">Pontuação final: <strong>${score}</strong></div>
+                            <div class="result-item">Precisão estimada: <strong>${precision}</strong></div>
+                            <div class="result-item">Nível estimado: <strong>${level}</strong></div>
+                        `;
+
+                        // Atualiza a lista de jogadas para o histórico
+                        if (moves && moves.length > 0) {
+                            movesList = moves;
+                            currentMoveIndex = -1; // posição inicial
+                            renderMoveHistory();
+                        }
+
+                        // Atualiza o tabuleiro para a posição final da partida, se o FEN for válido
+                        if (final_fen && typeof updateBoard === "function") {
+                            updateBoard(final_fen);
+                        }
+                    })
+                    .catch(err => {
+                        resultDiv.innerHTML = `<span style="color: red;">Erro ao processar o PGN.</span>`;
+                        console.error(err);
+                    });
+                };
+
+                reader.readAsText(file);
+            }
+        
         // Vincular eventos
         function attachEventListeners() {
             document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);

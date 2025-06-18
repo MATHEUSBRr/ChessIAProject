@@ -349,3 +349,25 @@
         .container {
             grid-template-columns: 250px 1fr 400px; /* esquerda - tabuleiro - direita */
         }
+
+        .pgn-result {
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .pgn-result .result-item {
+            margin-bottom: 8px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 10px;
+            color: white;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #4fc3f7;
+            border-radius: 5px;
+        }

@@ -80,6 +80,15 @@
             </div>
 
             <div class="panel-section">
+                <h3>Análise por PGN</h3>
+                <input type="file" id="pgnInput" accept=".pgn">
+                <button onclick="importPGN()">Importar PGN</button>
+
+                <div class="pgn-result" id="pgnResult">
+                </div>
+            </div>
+
+            <div class="panel-section">
                 <h3>Histórico de Jogadas</h3>
                 <div class="move-list" id="moveList">
                     <div style="color: #999; text-align: center; padding: 20px;">
