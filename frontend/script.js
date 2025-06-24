@@ -48,7 +48,6 @@
             ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
         ];
 
-        // Inicializar o jogo
         function initGame() {
             gameState.board = JSON.parse(JSON.stringify(initialBoard));
             createBoard();
@@ -86,7 +85,7 @@
             }
         }
 
-        // Converter coordenadas para nome da casa (ex: 0,0 = a8)
+        // Converter coordenadas para nome da casa 
         function getSquareName(row, col) {
             const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
             const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
@@ -104,13 +103,11 @@
 
         // Lidar com clique na casa
         function handleSquareClick(row, col) {
-            // Se houver promoção pendente, ignore cliques no tabuleiro
             if (gameState.pendingPromotion) return;
             
             const piece = gameState.board[row][col];
             const squareName = getSquareName(row, col);
 
-            // Se já há uma casa selecionada
             if (gameState.selectedSquare) {
                 const isValidMove = gameState.validMoves.some(move => 
                     move.to === squareName
@@ -125,7 +122,6 @@
                     }
                 }
             } else {
-                // Selecionar peça se pertence ao jogador atual
                 if (piece && isPieceOwnedByCurrentPlayer(piece)) {
                     selectSquare(row, col);
                 }
@@ -139,14 +135,12 @@
                    (gameState.currentPlayer === 'black' && !isWhitePiece);
         }
 
-        // Selecionar casa
         function selectSquare(row, col) {
             gameState.selectedSquare = getSquareName(row, col);
             gameState.validMoves = getValidMoves(row, col);
             updateBoard();
         }
 
-        // Limpar seleção
         function clearSelection() {
             gameState.selectedSquare = null;
             gameState.validMoves = [];
@@ -208,6 +202,7 @@
             return moves.filter(move => !isMoveLeavingKingInCheck(move, piece));
         }
 
+        // #region Movimento e regras do Peão
         // Jogadas do peão (CORREÇÃO: En Passant)
         function getPawnMoves(row, col, piece) {
         const moves = [];
@@ -275,6 +270,9 @@
 
         return moves;
     }
+// #endregion
+
+        //#region Movimento das peças
 
         // Jogadas da torre
         function getRookMoves(row, col, piece) {
@@ -383,8 +381,10 @@
         function getQueenMoves(row, col, piece) {
             return [...getRookMoves(row, col, piece), ...getBishopMoves(row, col, piece)];
         }
+// #endregion
 
-        // Jogadas do rei (CORREÇÃO: Roque)
+        // #region Movimento do rei e regras do roque
+        // Jogadas do rei 
         function getKingMoves(row, col, piece) {
             const moves = [];
             const directions = [
@@ -412,17 +412,14 @@
                 }
             }
 
-            // Roque (CORREÇÃO)
-            const isWhite = piece === 'K'; // Supondo 'K' = Rei branco e 'k' = Rei preto
+            const isWhite = piece === 'K'; //'K' = Rei branco 'k' = Rei preto
             const backRank = isWhite ? 7 : 0;
             const enemyColor = isWhite ? 'black' : 'white';
 
-            if (row === backRank && col === 4) { // Rei está na posição inicial (e1 para branco, e8 para preto)
+            if (row === backRank && col === 4) { 
                 // Roque curto (lado do rei)
                 if (gameState.castlingRights[isWhite ? 'whiteKingSide' : 'blackKingSide']) {
-                    // Verifica se as casas entre o rei e a torre estão vazias
                     if (!gameState.board[backRank][5] && !gameState.board[backRank][6]) {
-                        // Verifica se o rei não está em xeque e não passa por casas atacadas
                         if (!isSquareAttacked(backRank, 4, enemyColor) &&
                             !isSquareAttacked(backRank, 5, enemyColor) &&
                             !isSquareAttacked(backRank, 6, enemyColor)) {
@@ -439,12 +436,10 @@
 
                 // Roque longo (lado da rainha)
                 if (gameState.castlingRights[isWhite ? 'whiteQueenSide' : 'blackQueenSide']) {
-                    // Verifica se as casas entre o rei e a torre estão vazias
                     if (!gameState.board[backRank][1] && 
                         !gameState.board[backRank][2] &&
                         !gameState.board[backRank][3]) {
                         
-                        // Verifica se o rei não está em xeque e não passa por casas atacadas
                         if (!isSquareAttacked(backRank, 2, enemyColor) &&
                             !isSquareAttacked(backRank, 3, enemyColor) &&
                             !isSquareAttacked(backRank, 4, enemyColor)) {
@@ -463,12 +458,10 @@
             return moves;
         }
 
-        // Verificar se a posição é válida
         function isValidPosition(row, col) {
             return row >= 0 && row < 8 && col >= 0 && col < 8;
         }
 
-        // Verificar se é peça do oponente
         function isOpponentPiece(piece1, piece2) {
             const isWhite1 = piece1 === piece1.toUpperCase();
             const isWhite2 = piece2 === piece2.toUpperCase();
@@ -477,7 +470,6 @@
 
         // Verificar se a jogada deixa o rei em xeque
         function isMoveLeavingKingInCheck(move, piece) {
-            // Simular a jogada
             const fromCoords = getSquareCoords(move.from);
             const toCoords = getSquareCoords(move.to);
             
@@ -540,8 +532,8 @@
 
             return false;
         }
+//#endregion
 
-        // Obter jogadas válidas sem validação de xeque (para evitar recursão)
         function getValidMovesWithoutCheckValidation(row, col, piece) {
             const pieceType = piece.toLowerCase();
 
@@ -574,21 +566,17 @@
                 option.className = 'promotion-option';
                 option.innerHTML = pieceSVGs[color === 'white' ? p : p.toLowerCase()];
                 option.addEventListener('click', () => {
-                    // Atualizar a peça no tabuleiro
                     const coords = getSquareCoords(to);
                     gameState.board[coords.row][coords.col] = color === 'white' ? p : p.toLowerCase();
                     
-                    // Fechar modal
                     modal.remove();
                     gameState.pendingPromotion = null;
                     
-                    // Continuar o jogo
                     gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
                     if (gameState.currentPlayer === 'white') {
                         gameState.moveNumber++;
                     }
                     
-                    // Atualizar o tabuleiro
                     createBoard();
                     updateGameInfo();
                     updateMoveList();
@@ -626,7 +614,6 @@
             gameState.board[fromCoords.row][fromCoords.col] = null;
             gameState.board[toCoords.row][toCoords.col] = piece;
 
-            // Tratar Roque (mover também a torre)
             if (move.castle) {
                 const backRank = isWhite ? 7 : 0;
 
@@ -639,7 +626,6 @@
                         to: getSquareName(backRank, 5)
                     };
                 } else if (move.castle === 'queen') {
-                    // Torre do lado da dama: a1 → d1 ou a8 → d8
                     gameState.board[backRank][0] = null;
                     gameState.board[backRank][3] = isWhite ? 'R' : 'r';
                     move.rookMove = {
@@ -700,7 +686,6 @@
                 }
             }
 
-            // Atualizar interface
             updateGameStatus();
             clearSelection();
             createBoard();
@@ -746,7 +731,6 @@
             }
         }
 
-        // Verificar se há jogadas válidas
         function hasAnyValidMoves(color) {
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
@@ -764,7 +748,6 @@
             return false;
         }
 
-        // Atualizar informações do jogo
         function updateGameInfo() {
             const statusElement = document.getElementById('gameStatus');
             const moveNumberElement = document.getElementById('moveNumber');
@@ -792,7 +775,6 @@
             moveNumberElement.textContent = gameState.moveNumber;
         }
 
-        // Atualizar lista de jogadas
         function updateMoveList() {
             const moveListElement = document.getElementById('moveList');
             
@@ -846,17 +828,16 @@
             }
 
             if (move.promotion) {
-                notation += '=Q'; // Assumindo promoção para rainha
+                notation += '=Q';
             }
 
             return notation;
         }
 
-        // Gerar FEN da posição atual (CORREÇÃO: FEN completo)
         function generateFEN() {
             let fen = '';
             
-            // Posição das peças (começando da linha 8)
+            // Posição das peças
             for (let row = 7; row >= 0; row--) {
                 let emptyCount = 0;
                 for (let col = 0; col < 8; col++) {
@@ -888,21 +869,17 @@
             if (gameState.castlingRights.blackQueenSide) castling += 'q';
             fen += ' ' + (castling || '-');
             
-            // Alvo en passant
             fen += ' ' + (gameState.enPassantTarget || '-');
             
-            // Contadores de jogadas
             fen += ' 0 ' + gameState.moveNumber;
 
             return fen;
         }
 
-        // Atualizar campo FEN
         function updateFEN() {
             document.getElementById('fenInput').value = generateFEN();
         }
 
-        // Carregar posição FEN
         function loadFEN() {
             const fen = document.getElementById('fenInput').value.trim();
             if (!fen) return;
@@ -912,10 +889,8 @@
                 const position = parts[0];
                 const activePlayer = parts[1];
                 
-                // Limpar tabuleiro
                 gameState.board = Array(8).fill(null).map(() => Array(8).fill(null));
                 
-                // Carregar peças
                 const rows = position.split('/');
                 for (let row = 0; row < 8; row++) {
                     let col = 0;
@@ -932,7 +907,6 @@
                 // Definir jogador ativo
                 gameState.currentPlayer = activePlayer === 'w' ? 'white' : 'black';
                 
-                // Resetar outros estados
                 gameState.selectedSquare = null;
                 gameState.validMoves = [];
                 gameState.moveHistory = [];
@@ -950,7 +924,6 @@
             }
         }
 
-        // Resetar jogo
         function resetGame() {
             gameState.board = JSON.parse(JSON.stringify(initialBoard));
             gameState.currentPlayer = 'white';
@@ -962,7 +935,6 @@
             gameState.lastMove = null;
             gameState.pendingPromotion = null;
 
-            // Resetar direitos de roque e outras variáveis
             gameState.castlingRights = {
                 whiteKingSide: true,
                 whiteQueenSide: true,
@@ -979,7 +951,6 @@
             updateEvaluation(0, '-');
         }
 
-        // Desfazer jogada
         function undoMove() {
             if (gameState.moveHistory.length === 0 || gameState.pendingPromotion) return;
 
@@ -987,11 +958,9 @@
             const fromCoords = getSquareCoords(lastMove.from);
             const toCoords = getSquareCoords(lastMove.to);
 
-            // Restaurar peça original
             gameState.board[fromCoords.row][fromCoords.col] = lastMove.piece;
             gameState.board[toCoords.row][toCoords.col] = lastMove.capture || null;
 
-            // Restaurar roque
             if (lastMove.castle) {
                 const backRank = lastMove.piece === 'K' ? 7 : 0;
                 
@@ -1004,13 +973,11 @@
                 }
             }
 
-            // Restaurar en passant
             if (lastMove.isEnPassant) {
                 const capturedRow = lastMove.piece === 'P' ? toCoords.row + 1 : toCoords.row - 1;
                 gameState.board[capturedRow][toCoords.col] = lastMove.piece === 'P' ? 'p' : 'P';
             }
 
-            // Trocar jogador
             gameState.currentPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
             
             if (gameState.currentPlayer === 'black') {
@@ -1039,7 +1006,6 @@
             }
 
           function normalizeFen(fen) {
-            // Pega só a parte das peças (antes do primeiro espaço)
             return fen.split(' ')[0];
             }
 
@@ -1137,14 +1103,11 @@
                 if (row < 7) fen += '/';
             }
 
-            // Turno atual (w ou b)
            const turn = gameState.currentPlayer === 'black' ? 'b' : 'w';
 
-            // Roque e en passant: você pode aprimorar isso depois
             const castling = '-';
             const enPassant = '-';
 
-            // Meio-lances e número do lance (você pode atualizar isso conforme implementa contagem)
             const halfmoveClock = 0;
             const fullmoveNumber = gameState.fullmove || 1;
 
@@ -1154,7 +1117,6 @@
 
             document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);
 
-            // Carrega as aberturas ao iniciar
             loadOpenings();
 
             function updatePvLines(lines) {
@@ -1174,7 +1136,6 @@
             });
         }
         
-            // Atualizar a função importPGN para extrair as jogadas e popular o histórico
             function importPGN() {
                 const input = document.getElementById('pgnInput');
                 const file = input.files[0];
@@ -1202,7 +1163,6 @@
                             return;
                         }
 
-                        // Atualiza resultado da análise no div
                         const {
                             total_moves,
                             correct_moves,
@@ -1214,7 +1174,7 @@
                             precision,
                             best_moves,
                             final_fen,
-                            moves // vou assumir que o backend retorne um array com as jogadas em SAN
+                            moves 
                         } = data;
 
                         resultDiv.innerHTML = `
@@ -1228,14 +1188,12 @@
                             <div class="result-item">Nível estimado: <strong>${level}</strong></div>
                         `;
 
-                        // Atualiza a lista de jogadas para o histórico
                         if (moves && moves.length > 0) {
-                            movesList = moves;
-                            currentMoveIndex = -1; // posição inicial
+                            moveList = moves;
+                            currentMoveIndex = -1;
                             renderMoveHistory();
                         }
 
-                        // Atualiza o tabuleiro para a posição final da partida, se o FEN for válido
                         if (final_fen && typeof updateBoard === "function") {
                             updateBoard(final_fen);
                         }
@@ -1249,7 +1207,6 @@
                 reader.readAsText(file);
             }
         
-        // Vincular eventos
         function attachEventListeners() {
             document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);
             document.getElementById('undoBtn').addEventListener('click', undoMove);
@@ -1257,5 +1214,4 @@
             document.getElementById('loadFENBtn').addEventListener('click', loadFEN);
         }
 
-        // Inicializar o jogo quando a página carregar
         window.addEventListener('load', initGame);
