@@ -6,6 +6,7 @@ import chess.engine
 import chess.pgn
 import os
 import json
+import atexit
 
 app = Flask(__name__)
 CORS(app)
@@ -26,10 +27,19 @@ def match_opening(fen_position):
             return opening['name']
     return "Abertura desconhecida"
 
+# Abrir motor Stockfish uma vez só
+engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
+
+@atexit.register
+def close_engine():
+    engine.quit()
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
     fen = data.get("fen")
+    depth = data.get("depth", 13) 
+
     if not fen:
         return jsonify({"error": "FEN não fornecida"}), 400
 
@@ -37,35 +47,36 @@ def analyze():
         board = chess.Board(fen)
         is_white_to_move = board.turn == chess.WHITE
 
-        with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
-            result = engine.analyse(board, chess.engine.Limit(depth=15))
-            best_move = result.get("pv")[0].uci() if "pv" in result else None
-            score = result["score"]
+        # Usa o motor já aberto
+        result = engine.analyse(board, chess.engine.Limit(depth=depth))
 
-            pv_lines = []
-            if "pv" in result:
-                for move in result["pv"]:
-                    pv_lines.append(move.uci())
+        best_move = result.get("pv")[0].uci() if "pv" in result else None
+        score = result["score"]
 
-            analysis_score = score.white() if is_white_to_move else score.black()
+        pv_lines = []
+        if "pv" in result:
+            for move in result["pv"]:
+                pv_lines.append(move.uci())
 
-            if analysis_score.is_mate():
-                mate_in = analysis_score.mate()
-                evaluation = None
-            else:
-                mate_in = None
-                evaluation = analysis_score.score(mate_score=10000) / 100.0
+        analysis_score = score.white() if is_white_to_move else score.black()
 
-            opening = match_opening(fen)
+        if analysis_score.is_mate():
+            mate_in = analysis_score.mate()
+            evaluation = None
+        else:
+            mate_in = None
+            evaluation = analysis_score.score(mate_score=10000) / 100.0
 
-            return jsonify({
-                "bestmove": best_move,
-                "evaluation": evaluation,
-                "mate_in": mate_in,
-                "opening": opening,
-                "turn": "white" if is_white_to_move else "black",
-                "pv_lines": pv_lines
-            })
+        opening = match_opening(fen)
+
+        return jsonify({
+            "bestmove": best_move,
+            "evaluation": evaluation,
+            "mate_in": mate_in,
+            "opening": opening,
+            "turn": "white" if is_white_to_move else "black",
+            "pv_lines": pv_lines
+        })
 
     except Exception as e:
         return jsonify({"error": f"Erro ao analisar: {str(e)}"}), 500
@@ -88,36 +99,35 @@ def analyze_pgn():
         inaccuracies = 0
         best_moves_list = []
 
-        with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
-            for move in pgn_io.mainline_moves():
-                move_count += 1
+        for move in pgn_io.mainline_moves():
+            move_count += 1
 
-                # Obtem análise antes da jogada
-                analysis = engine.analyse(board, chess.engine.Limit(depth=15))
-                best_move = analysis["pv"][0]
-                best_moves_list.append(best_move.uci())
+            # Obtem análise antes da jogada
+            analysis = engine.analyse(board, chess.engine.Limit(depth=15))
+            best_move = analysis["pv"][0]
+            best_moves_list.append(best_move.uci())
 
-                # Verifica se foi a melhor jogada
-                if move == best_move:
-                    correct_moves += 1
-                else:
-                    # Avaliação após jogada para medir o impacto
-                    board.push(move)
-                    new_analysis = engine.analyse(board, chess.engine.Limit(depth=15))
-                    score_before = analysis["score"].white().score(mate_score=10000)
-                    score_after = new_analysis["score"].white().score(mate_score=10000)
-                    diff = (score_after - score_before) if score_before and score_after else 0
-
-                    # Classificação do erro
-                    if diff <= -300:
-                        blunders += 1
-                    elif diff <= -100:
-                        mistakes += 1
-                    elif diff <= -50:
-                        inaccuracies += 1
-
-                    continue  # move já foi dado com push
+            # Verifica se foi a melhor jogada
+            if move == best_move:
+                correct_moves += 1
+            else:
+                # Avaliação após jogada para medir o impacto
                 board.push(move)
+                new_analysis = engine.analyse(board, chess.engine.Limit(depth=15))
+                score_before = analysis["score"].white().score(mate_score=10000)
+                score_after = new_analysis["score"].white().score(mate_score=10000)
+                diff = (score_after - score_before) if score_before and score_after else 0
+
+                # Classificação do erro
+                if diff <= -300:
+                    blunders += 1
+                elif diff <= -100:
+                    mistakes += 1
+                elif diff <= -50:
+                    inaccuracies += 1
+
+                continue 
+            board.push(move)
 
         score = round((correct_moves / move_count) * 100, 1)
         final_fen = board.fen()

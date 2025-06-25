@@ -25,6 +25,9 @@
             moveNumber: 1,
             lastMove: null,
             pendingPromotion: null,
+            vsAI: false,
+            humanColor: null,
+            isThinking: false,
 
             castlingRights: {
                 whiteKingSide: true,
@@ -589,7 +592,7 @@
             document.body.appendChild(modal);
         }
 
-        function makeMove(from, to) {
+        function makeMove(from, to) {            
             const fromCoords = getSquareCoords(from);
             const toCoords = getSquareCoords(to);
 
@@ -684,6 +687,10 @@
                 if (gameState.currentPlayer === 'white') {
                     gameState.moveNumber++;
                 }
+            }
+
+            if (vsAI && gameState.currentPlayer !== humanColor) {
+                setTimeout(playAIMove, 300);
             }
 
             updateGameStatus();
@@ -925,30 +932,52 @@
         }
 
         function resetGame() {
-            gameState.board = JSON.parse(JSON.stringify(initialBoard));
-            gameState.currentPlayer = 'white';
-            gameState.selectedSquare = null;
-            gameState.validMoves = [];
-            gameState.moveHistory = [];
-            gameState.gameStatus = 'playing';
-            gameState.moveNumber = 1;
-            gameState.lastMove = null;
-            gameState.pendingPromotion = null;
-
-            gameState.castlingRights = {
-                whiteKingSide: true,
-                whiteQueenSide: true,
-                blackKingSide: true,
-                blackQueenSide: true
+            gameState = {
+                board: JSON.parse(JSON.stringify(initialBoard)),
+                currentPlayer: 'white',
+                selectedSquare: null,
+                validMoves: [],
+                moveHistory: [],
+                gameStatus: 'playing',
+                moveNumber: 1,
+                lastMove: null,
+                pendingPromotion: null,
+                castlingRights: {
+                    whiteKingSide: true,
+                    whiteQueenSide: true,
+                    blackKingSide: true,
+                    blackQueenSide: true
+                },
+                enPassantTarget: null,
+                halfMoveClock: 0
             };
-            gameState.enPassantTarget = null;
-            gameState.halfMoveClock = 0;
 
             createBoard();
             updateGameInfo();
             updateMoveList();
             updateFEN();
             updateEvaluation(0, '-');
+        }
+
+        function exitVsAI() {
+            vsAI = false;
+            humanColor = null;
+            isThinking = false;
+            resetGame(); 
+        }
+
+        function startVsAI() {
+            const colorSelect = document.getElementById("playerColor");
+            const selectedColor = colorSelect.value;
+
+            vsAI = true;
+            humanColor = selectedColor;
+
+            resetGame();
+
+            if (humanColor === "black") {
+                playAIMove();
+            }
         }
 
         function undoMove() {
@@ -1207,6 +1236,49 @@
                 reader.readAsText(file);
             }
         
+            function playAIMove() {
+                if (isThinking) return;
+                isThinking = true;
+
+                const fen = generateFEN();
+
+                fetch("http://127.0.0.1:5000/analyze", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fen: fen })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.bestmove) {
+                        console.error("IA não retornou melhor jogada");
+                        return;
+                    }
+                    const from = data.bestmove.slice(0, 2);
+                    const to = data.bestmove.slice(2, 4);
+
+                    makeMove(from, to);
+                })
+                .catch(err => console.error("Erro IA:", err))
+                .finally(() => {
+                    isThinking = false;
+                });
+            }
+
+            function canHumanMovePiece(from) {
+                if (!vsAI) return true;
+
+                const fromCoords = getSquareCoords(from);
+                const piece = gameState.board[fromCoords.row][fromCoords.col];
+                if (!piece) return false;
+
+                const isWhite = piece === piece.toUpperCase();
+
+                if (humanColor === 'white' && isWhite) return true;
+                if (humanColor === 'black' && !isWhite) return true;
+
+                return false;
+            }
+
         function attachEventListeners() {
             document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);
             document.getElementById('undoBtn').addEventListener('click', undoMove);
