@@ -127,7 +127,7 @@ def analyze_pgn():
                 continue 
             board.push(move)
 
-        score = round((correct_moves / move_count) * 100, 1)
+        score = round((correct_moves / move_count) * 200, 1)
         final_fen = board.fen()
 
         return jsonify({
