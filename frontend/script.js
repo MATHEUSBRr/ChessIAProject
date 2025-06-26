@@ -206,7 +206,6 @@
         }
 
         // #region Movimento e regras do Peão
-        // Jogadas do peão (CORREÇÃO: En Passant)
         function getPawnMoves(row, col, piece) {
         const moves = [];
         const isWhite = piece === piece.toUpperCase();
@@ -250,7 +249,7 @@
             }
         }
 
-        // Captura en passant (correção completa)
+        // Captura en passant
         if (gameState.enPassantTarget) {
             const epCoords = getSquareCoords(gameState.enPassantTarget);
             if (row === enPassantRow && Math.abs(col - epCoords.col) === 1 && epCoords.row === row + direction) {

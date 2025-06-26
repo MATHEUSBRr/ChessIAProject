@@ -15,7 +15,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STOCKFISH_PATH = os.path.join(BASE_DIR, "stockfish.exe")
 OPENINGS_PATH = os.path.join(BASE_DIR, "aberturas.json")
 
-# Carregar aberturas na inicialização
 with open(OPENINGS_PATH, 'r', encoding='utf-8') as f:
     OPENINGS = json.load(f)
 
@@ -102,7 +101,6 @@ def analyze_pgn():
         for move in pgn_io.mainline_moves():
             move_count += 1
 
-            # Obtem análise antes da jogada
             analysis = engine.analyse(board, chess.engine.Limit(depth=15))
             best_move = analysis["pv"][0]
             best_moves_list.append(best_move.uci())
