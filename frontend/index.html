@@ -60,7 +60,7 @@
         </div>
 
         <div class="panel-section">
-            <h3>Selecione um modo de Jogo</h3>
+            <h3>Opções de Jogo</h3>
             <div class="controls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                 <label for="playerColor">Cor:</label>
                 <select id="playerColor">
@@ -68,8 +68,7 @@
                     <option value="black">Pretas</option>
                 </select>
 
-                <button onclick="startVsAI()">Jogar contra IA</button>
-                <button onclick="exitVsAI()">Modo Livre</button>
+                <button onclick="startVsAI()" id="btnStartAI">Jogar contra IA</button>
                 <button onclick="undoMove()" id="undoBtn">Desfazer a jogada</button>
             </div>
         </div>

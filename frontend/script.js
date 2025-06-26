@@ -52,10 +52,13 @@
         ];
 
         function initGame() {
+            gameState.vsAI = false;
+            gameState.humanColor = null;
+            gameState.isThinking = false;
             gameState.board = JSON.parse(JSON.stringify(initialBoard));
             createBoard();
             updateGameInfo();
-            updateFEN();
+            updateMoveList();
             attachEventListeners();
         }
 
@@ -104,29 +107,29 @@
             return { row, col };
         }
 
-        // Lidar com clique na casa
         function handleSquareClick(row, col) {
+            if (gameState.vsAI) {
+                if (gameState.isThinking) return;
+                if (gameState.currentPlayer !== gameState.humanColor) return;
+            }
             if (gameState.pendingPromotion) return;
-            
+
             const piece = gameState.board[row][col];
-            const squareName = getSquareName(row, col);
+            const sq = getSquareName(row, col);
 
             if (gameState.selectedSquare) {
-                const isValidMove = gameState.validMoves.some(move => 
-                    move.to === squareName
-                );
-
-                if (isValidMove) {
-                    makeMove(gameState.selectedSquare, squareName);
+                const ok = gameState.validMoves.some(m => m.to === sq);
+                if (ok) {
+                makeMove(gameState.selectedSquare, sq);
                 } else {
-                    clearSelection();
-                    if (piece && isPieceOwnedByCurrentPlayer(piece)) {
-                        selectSquare(row, col);
-                    }
+                clearSelection();
+                if (piece && isPieceOwnedByCurrentPlayer(piece)) {
+                    selectSquare(row, col);
+                }
                 }
             } else {
                 if (piece && isPieceOwnedByCurrentPlayer(piece)) {
-                    selectSquare(row, col);
+                selectSquare(row, col);
                 }
             }
         }
@@ -582,7 +585,6 @@
                     createBoard();
                     updateGameInfo();
                     updateMoveList();
-                    updateFEN();
                 });
                 options.appendChild(option);
             });
@@ -688,7 +690,7 @@
                 }
             }
 
-            if (vsAI && gameState.currentPlayer !== humanColor) {
+            if (gameState.vsAI && gameState.currentPlayer !== gameState.humanColor) {
                 setTimeout(playAIMove, 300);
             }
 
@@ -697,7 +699,6 @@
             createBoard();
             updateGameInfo();
             updateMoveList();
-            updateFEN();
         }
 
         function isSquareAttacked(row, col, byColor) {
@@ -882,10 +883,6 @@
             return fen;
         }
 
-        function updateFEN() {
-            document.getElementById('fenInput').value = generateFEN();
-        }
-
         function loadFEN() {
             const fen = document.getElementById('fenInput').value.trim();
             if (!fen) return;
@@ -931,51 +928,52 @@
         }
 
         function resetGame() {
-            gameState = {
-                board: JSON.parse(JSON.stringify(initialBoard)),
-                currentPlayer: 'white',
-                selectedSquare: null,
-                validMoves: [],
-                moveHistory: [],
-                gameStatus: 'playing',
-                moveNumber: 1,
-                lastMove: null,
-                pendingPromotion: null,
-                castlingRights: {
-                    whiteKingSide: true,
-                    whiteQueenSide: true,
-                    blackKingSide: true,
-                    blackQueenSide: true
-                },
-                enPassantTarget: null,
-                halfMoveClock: 0
+            gameState.board = JSON.parse(JSON.stringify(initialBoard));
+            gameState.currentPlayer = 'white';
+            gameState.selectedSquare = null;
+            gameState.validMoves = [];
+            gameState.moveHistory = [];
+            gameState.gameStatus = 'playing';
+            gameState.moveNumber = 1;
+            gameState.lastMove = null;
+            gameState.pendingPromotion = null;
+            gameState.castlingRights = {
+                whiteKingSide: true,
+                whiteQueenSide: true,
+                blackKingSide: true,
+                blackQueenSide: true
             };
+            gameState.enPassantTarget = null;
+            gameState.halfMoveClock = 0;
 
             createBoard();
             updateGameInfo();
             updateMoveList();
-            updateFEN();
             updateEvaluation(0, '-');
         }
 
-        function exitVsAI() {
-            vsAI = false;
-            humanColor = null;
-            isThinking = false;
-            resetGame(); 
-        }
-
         function startVsAI() {
-            const colorSelect = document.getElementById("playerColor");
-            const selectedColor = colorSelect.value;
-
-            vsAI = true;
-            humanColor = selectedColor;
+            const sel = document.getElementById('playerColor');
+            gameState.humanColor = sel.value; 
+            gameState.vsAI = true;
+            gameState.isThinking = false; 
 
             resetGame();
 
-            if (humanColor === "black") {
-                playAIMove();
+            console.log("Cor humano:", gameState.humanColor, 
+                        "Jogador atual:", gameState.currentPlayer,
+                        "vsAI:", gameState.vsAI);
+
+            if (gameState.humanColor === 'black') {
+                gameState.currentPlayer = 'white';
+                
+                console.log("Chamando IA para jogar...");
+
+                setTimeout(() => {
+                    if (gameState.currentPlayer === 'white' && gameState.vsAI) {
+                        playAIMove();
+                    }
+                }, 100);
             }
         }
 
@@ -1019,7 +1017,6 @@
             createBoard();
             updateGameInfo();
             updateMoveList();
-            updateFEN();
         }
 
             let openings = [];
@@ -1236,30 +1233,25 @@
             }
         
             function playAIMove() {
-                if (isThinking) return;
-                isThinking = true;
+            if (gameState.isThinking) return;
+                gameState.isThinking = true;
 
                 const fen = generateFEN();
-
                 fetch("http://127.0.0.1:5000/analyze", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ fen: fen })
+                    body: JSON.stringify({ fen })
                 })
                 .then(res => res.json())
                 .then(data => {
-                    if (!data.bestmove) {
-                        console.error("IA não retornou melhor jogada");
-                        return;
-                    }
+                    if (!data.bestmove) return;
                     const from = data.bestmove.slice(0, 2);
-                    const to = data.bestmove.slice(2, 4);
-
+                    const to   = data.bestmove.slice(2, 4);
                     makeMove(from, to);
                 })
-                .catch(err => console.error("Erro IA:", err))
+                .catch(console.error)
                 .finally(() => {
-                    isThinking = false;
+                    gameState.isThinking = false;
                 });
             }
 
@@ -1281,8 +1273,7 @@
         function attachEventListeners() {
             document.getElementById('analyzeBtn').addEventListener('click', analyzePosition);
             document.getElementById('undoBtn').addEventListener('click', undoMove);
-            document.getElementById('resetBtn').addEventListener('click', resetGame);
-            document.getElementById('loadFENBtn').addEventListener('click', loadFEN);
+            document.getElementById('btnStartAI').addEventListener('click', startVsAI);
         }
 
         window.addEventListener('load', initGame);
